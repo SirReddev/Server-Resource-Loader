@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  <b>A dedicated server-side Fabric mod for managing, syncing from GitHub, and serving resource packs to players seamlessly.</b>
+  <b>A dedicated server-side Fabric mod for managing, serving server resource packs, and automatically syncing resource packs and world datapacks from GitHub repositories.</b>
 </p>
 
 ---
@@ -14,8 +14,9 @@
 ## <img src="assets/icons/pack.mcmeta_file.svg" width="24" height="24" valign="middle" /> Table of Contents
 
 - [Installation](#installation)
+- [How to Set Up & Configure](#how-to-set-up--configure)
 - [Commands](#commands)
-- [Configuration](#configuration)
+- [Configuration Reference](#configuration-reference)
 - [GitHub Repository Sync](#github-repository-sync)
 - [Custom Messages](#custom-messages)
 - [Credits](#credits)
@@ -27,10 +28,32 @@
 
 1. Download `resourceloader-0.8.jar` or compile it with `.\gradlew.bat build`.
 2. Place the `.jar` file into your server's `mods/` directory.
-3. Put your resource pack `.zip` files into `config/resourceloader/packs/`.
-4. Start your server.
+3. Start your server once to generate the default configuration files.
+4. Customize `config/resourceloader/config.json` to suit your server's needs.
 
-> **Note:** ResourceLoader is 100% server-side. Players joining your server do not need to install the mod.
+> **Note:** ResourceLoader is 100% server-side. Players joining your server do not need to install any client-side mod.
+
+---
+
+## <img src="assets/icons/config_folder.svg" width="24" height="24" valign="middle" /> How to Set Up & Configure
+
+### 1. Setting Up Resource Packs
+- **Local Packs**: Place your `.zip` resource packs into `config/resourceloader/packs/`. Set `serverPack` to the file name (e.g., `"main_pack.zip"`) to send it to players on join.
+- **Pack Aliases**: Add named packs to `resourcePacks` so players can switch using `/load <pack_name>`.
+- **External URLs**: You can also point pack entries to direct download URLs (e.g., `"https://example.com/pack.zip"`).
+
+### 2. Setting Up GitHub Datapack Sync
+Sync datapacks directly from GitHub into your active Minecraft world:
+- Set `datapacks.enabled` to `true`.
+- Add an entry under `datapacks.githubDatapacks` with the repository (`Owner/Repo` or full URL).
+- If your datapack is inside a subfolder (e.g. `datapack` or `data`), specify it in `path`.
+- If `datapacks.autoReloadOnUpdate` is `true`, the server will automatically trigger a `/reload` when a new commit is detected.
+- Leave `datapacks.customWorldDirectory` empty to automatically target your server's active world directory (`world/datapacks/`).
+
+### 3. Setting Up Built-in HTTP Server
+ResourceLoader hosts your resource packs so players can download them directly from your server without third-party file hosts:
+- **Port**: Default is `40021`. Make sure this TCP port is open/forwarded on your router or firewall.
+- **Address**: Leave empty to auto-detect your external IP, or enter your public server IP / domain name (e.g., `"play.example.com"`).
 
 ---
 
@@ -54,7 +77,7 @@
 
 ---
 
-## <img src="assets/icons/config_folder.svg" width="24" height="24" valign="middle" /> Configuration
+## <img src="assets/icons/config_folder.svg" width="24" height="24" valign="middle" /> Configuration Reference
 
 File location: `config/resourceloader/config.json`
 
@@ -129,16 +152,17 @@ File location: `config/resourceloader/config.json`
 | `serverPack` | String | Default pack file or URL sent to joining players. |
 | `resourcePacks` | Map | Named aliases mapped to local `.zip` files or download URLs. |
 | `githubPacks` | Map | Direct GitHub repository sources for live resource pack development. |
-| `datapacks.enabled` | Boolean | Enable GitHub sync support for server datapacks. |
-| `datapacks.customWorldDirectory` | String | Optional path to custom world folder (leave empty for active world). |
-| `datapacks.autoReloadOnUpdate` | Boolean | Automatically execute server reload when a datapack updates. |
+| `datapacks.enabled` | Boolean | Master toggle for GitHub datapack sync features. |
+| `datapacks.customWorldDirectory` | String | Custom world path (leave blank to auto-target active server world). |
+| `datapacks.autoReloadOnUpdate` | Boolean | Automatically trigger server reload (`/reload`) when a datapack updates. |
 | `datapacks.githubDatapacks` | Map | Direct GitHub repository sources for live datapack development. |
-| `server.port` | Integer | Port for the built-in HTTP server (Default: `40021`). |
-| `server.address` | String | Your public server IP or domain (leave empty for auto-detection). |
-| `compression.enabled` | Boolean | Enable smart compression to reduce download times. |
-| `enforcement.enabled` | Boolean | Require players to load the pack on join. |
+| `server.port` | Integer | TCP port for the built-in HTTP server (Default: `40021`). |
+| `server.address` | String | Public IP or domain name for pack downloads (leave empty for auto-detection). |
+| `server.localhost` | Boolean | Restrict HTTP server to localhost only (useful behind reverse proxies). |
+| `compression.enabled` | Boolean | Automatically optimize pack compression for faster downloads. |
+| `enforcement.enabled` | Boolean | Require players to accept the pack to stay on the server. |
 | `messages.enabled` | Boolean | Master toggle for all chat messages. |
-| `messages.prefix` | String | Custom prefix for chat messages. |
+| `messages.prefix` | String | Custom chat prefix for mod messages. |
 
 ---
 
