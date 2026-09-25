@@ -15,6 +15,7 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.permissions.Permissions;
 import org.vortex.resourceloader.ResourceLoaderMod;
+import org.vortex.resourceloader.config.ModConfig;
 import org.vortex.resourceloader.util.FileUtil;
 import org.vortex.resourceloader.validation.PackValidator;
 
@@ -30,6 +31,9 @@ public class ResourceLoaderCommands {
             if (mod.getConfig().resourcePacks != null) {
                 packs.addAll(mod.getConfig().resourcePacks.keySet());
             }
+            if (mod.getConfig().githubPacks != null) {
+                packs.addAll(mod.getConfig().githubPacks.keySet());
+            }
             return SharedSuggestionProvider.suggest(packs, builder);
         }
         return builder.buildFuture();
@@ -41,6 +45,9 @@ public class ResourceLoaderCommands {
             Set<String> packs = new HashSet<>(mod.getPackManager().getResourcePacks().keySet());
             if (mod.getConfig().resourcePacks != null) {
                 packs.addAll(mod.getConfig().resourcePacks.keySet());
+            }
+            if (mod.getConfig().githubPacks != null) {
+                packs.addAll(mod.getConfig().githubPacks.keySet());
             }
             packs.add("clear");
             return SharedSuggestionProvider.suggest(packs, builder);
@@ -80,8 +87,49 @@ public class ResourceLoaderCommands {
         registerVersionCommand(dispatcher, "resourceversion");
         registerVersionCommand(dispatcher, "rversion");
 
+        registerGitHubSyncCommand(dispatcher, "syncgithub");
+        registerGitHubSyncCommand(dispatcher, "githubsync");
+        registerGitHubSyncCommand(dispatcher, "rsync");
+
         registerHelpCommand(dispatcher, "resourcehelp");
         registerHelpCommand(dispatcher, "rhelp");
+    }
+
+    private static void registerGitHubSyncCommand(CommandDispatcher<CommandSourceStack> dispatcher, String name) {
+        dispatcher.register(Commands.literal(name)
+                .requires(ResourceLoaderCommands::hasAdminPermission)
+                .executes(ctx -> {
+                    ResourceLoaderMod mod = ResourceLoaderMod.getInstance();
+                    if (mod.getConfig().githubPacks == null || mod.getConfig().githubPacks.isEmpty()) {
+                        ctx.getSource().sendFailure(Component.literal("§cNo GitHub repository packs configured in config.json."));
+                        return 0;
+                    }
+                    ctx.getSource().sendSuccess(() -> Component.literal("§7Checking all configured GitHub repository packs for updates..."), false);
+                    mod.getGitHubSync().syncAllAutoUpdatePacks();
+                    ctx.getSource().sendSuccess(() -> Component.literal("§aGitHub pack sync triggered in background."), false);
+                    return 1;
+                })
+                .then(Commands.argument("pack", StringArgumentType.string())
+                        .suggests(PACK_SUGGESTIONS)
+                        .executes(ctx -> {
+                            String packName = StringArgumentType.getString(ctx, "pack").toLowerCase();
+                            ResourceLoaderMod mod = ResourceLoaderMod.getInstance();
+                            if (mod.getConfig().githubPacks == null || !mod.getConfig().githubPacks.containsKey(packName)) {
+                                ctx.getSource().sendFailure(Component.literal("§cNo GitHub repository source found for pack: " + packName));
+                                return 0;
+                            }
+                            ModConfig.GitHubRepoSource source = mod.getConfig().githubPacks.get(packName);
+                            ctx.getSource().sendSuccess(() -> Component.literal("§7Syncing GitHub pack '§e" + packName + "§7' from repo §b" + source.repo + "§7..."), false);
+                            mod.getGitHubSync().syncPack(packName, source, true).thenAcceptAsync(file -> {
+                                ctx.getSource().sendSuccess(() -> Component.literal("§aSuccessfully updated GitHub pack '§e" + packName + "§a' (commit: §b" + source.lastCommitSha.substring(0, Math.min(7, source.lastCommitSha.length())) + "§a)!"), false);
+                            }).exceptionally(ex -> {
+                                ctx.getSource().sendFailure(Component.literal("§cFailed to sync GitHub pack: " + ex.getMessage()));
+                                return null;
+                            });
+                            return 1;
+                        })
+                )
+        );
     }
 
     private static void registerLoadCommand(CommandDispatcher<CommandSourceStack> dispatcher, String name) {
@@ -162,6 +210,8 @@ public class ResourceLoaderCommands {
                     Map<String, File> packs = mod.getPackManager().getResourcePacks();
                     Map<String, String> configPacks = mod.getConfig().resourcePacks;
 
+                    Map<String, ModConfig.GitHubRepoSource> githubPacks = mod.getConfig().githubPacks;
+
                     ctx.getSource().sendSuccess(() -> mod.getMessageManager().getMessageWithoutPrefix("list.header"), false);
 
                     String serverPack = mod.getConfig().serverPack;
@@ -173,14 +223,24 @@ public class ResourceLoaderCommands {
                     if (configPacks != null) {
                         allPackNames.addAll(configPacks.keySet());
                     }
+                    if (githubPacks != null) {
+                        allPackNames.addAll(githubPacks.keySet());
+                    }
 
                     if (allPackNames.isEmpty()) {
                         ctx.getSource().sendSuccess(() -> mod.getMessageManager().getMessageWithoutPrefix("list.no-packs"), false);
                     } else {
                         for (String packName : allPackNames) {
                             File file = packs.get(packName);
-                            String type = (file != null) ? "Local" : "Remote URL";
-                            String size = (file != null && file.exists()) ? FileUtil.formatFileSize(file.length()) : "Remote";
+                            String type;
+                            if (githubPacks != null && githubPacks.containsKey(packName)) {
+                                type = "GitHub Repo";
+                            } else if (file != null) {
+                                type = "Local";
+                            } else {
+                                type = "Remote URL";
+                            }
+                            String size = (file != null && file.exists()) ? FileUtil.formatFileSize(file.length()) : (type.equals("GitHub Repo") ? "Sync" : "Remote");
 
                             MutableComponent line = Component.literal("§7• §f" + packName + " §7(§b" + type + "§7, §a" + size + "§7) ")
                                     .append(Component.literal("§e[Load]")
@@ -376,6 +436,7 @@ public class ResourceLoaderCommands {
                         ctx.getSource().sendSuccess(() -> Component.literal("§e/mergepack <output> <p1> <p2>... §7- Merge resource packs"), false);
                         ctx.getSource().sendSuccess(() -> Component.literal("§e/checkpack <pack> §7- Validate pack structure & textures"), false);
                         ctx.getSource().sendSuccess(() -> Component.literal("§e/resourcereload §7- Reload configuration & packs"), false);
+                        ctx.getSource().sendSuccess(() -> Component.literal("§e/syncgithub [pack] §7- Sync & update packs from GitHub repos"), false);
                         ctx.getSource().sendSuccess(() -> Component.literal("§e/clearcache §7- Clear downloaded packs cache"), false);
                         ctx.getSource().sendSuccess(() -> Component.literal("§e/resourceversion §7- Show mod version"), false);
                     }

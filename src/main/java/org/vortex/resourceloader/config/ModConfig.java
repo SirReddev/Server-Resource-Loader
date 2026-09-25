@@ -20,6 +20,7 @@ public class ModConfig {
 
     public String serverPack = "";
     public Map<String, String> resourcePacks = new LinkedHashMap<>();
+    public Map<String, GitHubRepoSource> githubPacks = new LinkedHashMap<>();
     public StorageConfig storage = new StorageConfig();
     public ServerSettings server = new ServerSettings();
     public CompressionConfig compression = new CompressionConfig();
@@ -88,6 +89,16 @@ public class ModConfig {
         public Map<String, String> customMessages = new LinkedHashMap<>();
     }
 
+    public static class GitHubRepoSource {
+        public String repo = "";
+        public String branch = "main";
+        public String path = "";
+        public boolean autoUpdate = true;
+        public int checkIntervalMinutes = 10;
+        public String token = "";
+        public String lastCommitSha = "";
+    }
+
     public static ModConfig load(Path configPath) {
         File file = configPath.toFile();
         if (!file.exists()) {
@@ -103,6 +114,9 @@ public class ModConfig {
             }
             if (config.messages == null) {
                 config.messages = new MessagesConfig();
+            }
+            if (config.githubPacks == null) {
+                config.githubPacks = new LinkedHashMap<>();
             }
             return config;
         } catch (Exception e) {

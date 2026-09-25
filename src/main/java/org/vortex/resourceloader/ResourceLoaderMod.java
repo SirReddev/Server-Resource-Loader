@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import org.vortex.resourceloader.commands.ResourceLoaderCommands;
 import org.vortex.resourceloader.compression.PackCompressor;
 import org.vortex.resourceloader.config.ModConfig;
+import org.vortex.resourceloader.core.GitHubPackSync;
 import org.vortex.resourceloader.core.ResourcePackManager;
 import org.vortex.resourceloader.listeners.ResourcePackEnforcer;
 import org.vortex.resourceloader.merger.ResourcePackMerger;
@@ -30,6 +31,7 @@ public class ResourceLoaderMod implements DedicatedServerModInitializer {
     private PackCompressor packCompressor;
     private ResourcePackMerger packMerger;
     private ResourcePackEnforcer enforcer;
+    private GitHubPackSync gitHubSync;
 
     @Override
     public void onInitializeServer() {
@@ -53,6 +55,7 @@ public class ResourceLoaderMod implements DedicatedServerModInitializer {
         this.packMerger = new ResourcePackMerger(this);
         this.packManager = new ResourcePackManager(this);
         this.enforcer = new ResourcePackEnforcer(this);
+        this.gitHubSync = new GitHubPackSync(this);
 
         // Register Brigadier commands
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
@@ -80,6 +83,9 @@ public class ResourceLoaderMod implements DedicatedServerModInitializer {
         this.config = ModConfig.load(this.configDir.resolve("config.json"));
         this.messageManager.load();
         this.packManager.loadResourcePacks(false);
+        if (this.gitHubSync != null) {
+            this.gitHubSync.syncAllAutoUpdatePacks();
+        }
         LOGGER.info("ResourceLoader configuration reloaded");
     }
 
@@ -92,6 +98,9 @@ public class ResourceLoaderMod implements DedicatedServerModInitializer {
         }
         if (this.packMerger != null) {
             this.packMerger.shutdown();
+        }
+        if (this.gitHubSync != null) {
+            this.gitHubSync.shutdown();
         }
         LOGGER.info("ResourceLoader has been stopped.");
     }
@@ -126,5 +135,9 @@ public class ResourceLoaderMod implements DedicatedServerModInitializer {
 
     public ResourcePackEnforcer getEnforcer() {
         return this.enforcer;
+    }
+
+    public GitHubPackSync getGitHubSync() {
+        return this.gitHubSync;
     }
 }

@@ -144,6 +144,20 @@ public class ResourcePackManager {
             }
         }
 
+        if (config.githubPacks != null) {
+            for (Map.Entry<String, ModConfig.GitHubRepoSource> entry : config.githubPacks.entrySet()) {
+                String key = entry.getKey().toLowerCase();
+                File packFile = new File(packDirectory, key + ".zip");
+                if (packFile.exists()) {
+                    this.resourcePacks.put(key, packFile);
+                    if (!silent) LOGGER.info("Loaded GitHub-synced pack: {}", key);
+                } else {
+                    this.resourcePacks.put(key, null);
+                    if (!silent) LOGGER.info("Registered GitHub-synced pack source: {}", key);
+                }
+            }
+        }
+
         // Auto-discover any .zip files present in the packs folder
         File[] files = packDirectory.listFiles((dir, name) -> name.toLowerCase().endsWith(".zip"));
         if (files != null) {
@@ -164,6 +178,24 @@ public class ResourcePackManager {
         }
 
         String lowerName = packName.toLowerCase();
+
+        // Handle GitHub repo pack on-demand sync if file is missing
+        if (mod.getConfig().githubPacks != null && mod.getConfig().githubPacks.containsKey(lowerName)) {
+            ModConfig.GitHubRepoSource source = mod.getConfig().githubPacks.get(lowerName);
+            File localZip = new File(getResourcePackDirectory(), lowerName + ".zip");
+            if (!localZip.exists()) {
+                mod.getMessageManager().sendLoading(player, packName);
+                mod.getGitHubSync().syncPack(lowerName, source, true).thenAcceptAsync(file -> {
+                    this.resourcePacks.put(lowerName, file);
+                    sendLocalPackFile(player, lowerName, file);
+                }).exceptionally(ex -> {
+                    mod.getMessageManager().sendError(player, "resource-packs.load-failed", "error", ex.getMessage());
+                    return null;
+                });
+                return;
+            }
+        }
+
         String packPathOrUrl = null;
 
         if (lowerName.equals("server")) {
@@ -208,23 +240,32 @@ public class ResourcePackManager {
             });
         } else {
             File packFile = this.resourcePacks.get(lowerName);
-            if (packFile == null || !packFile.exists()) {
-                mod.getMessageManager().sendError(player, "resource-packs.file-not-found");
-                return;
-            }
-
-            PackCompressor.CompressionLevel level = mod.getPackCompressor().getOptimalCompressionLevel(player);
-            mod.getPackCompressor().getCompressedPack(packFile, level).thenAcceptAsync(finalFile -> {
-                try {
-                    String sha1 = hashCache.getOrCalculateHash(finalFile);
-                    String downloadUrl = this.packServer.createDownloadURL(player, lowerName, finalFile.getName());
-                    sendPacketToPlayer(player, packUuid, downloadUrl, sha1 != null ? sha1 : "", required, prompt);
-                } catch (Exception e) {
-                    mod.getMessageManager().sendError(player, "resource-packs.load-failed", "error", e.getMessage());
-                    LOGGER.error("Failed to send pack to player: {}", e.getMessage());
-                }
-            });
+            sendLocalPackFile(player, lowerName, packFile);
         }
+    }
+
+    public void sendLocalPackFile(ServerPlayer player, String lowerName, File packFile) {
+        if (packFile == null || !packFile.exists()) {
+            mod.getMessageManager().sendError(player, "resource-packs.file-not-found");
+            return;
+        }
+
+        UUID packUuid = UUID.nameUUIDFromBytes(("resourceloader:" + lowerName).getBytes(StandardCharsets.UTF_8));
+        boolean required = mod.getConfig().enforcement.required;
+        Optional<Component> prompt = Optional.ofNullable(mod.getConfig().enforcement.prompt != null && !mod.getConfig().enforcement.prompt.isEmpty()
+                ? Component.literal(mod.getConfig().enforcement.prompt) : null);
+
+        PackCompressor.CompressionLevel level = mod.getPackCompressor().getOptimalCompressionLevel(player);
+        mod.getPackCompressor().getCompressedPack(packFile, level).thenAcceptAsync(finalFile -> {
+            try {
+                String sha1 = hashCache.getOrCalculateHash(finalFile);
+                String downloadUrl = this.packServer.createDownloadURL(player, lowerName, finalFile.getName());
+                sendPacketToPlayer(player, packUuid, downloadUrl, sha1 != null ? sha1 : "", required, prompt);
+            } catch (Exception e) {
+                mod.getMessageManager().sendError(player, "resource-packs.load-failed", "error", e.getMessage());
+                LOGGER.error("Failed to send pack to player: {}", e.getMessage());
+            }
+        });
     }
 
     private void sendPacketToPlayer(ServerPlayer player, UUID packUuid, String url, String sha1, boolean required, Optional<Component> prompt) {
