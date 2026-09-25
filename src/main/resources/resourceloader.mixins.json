@@ -1,0 +1,13 @@
+{
+  "required": true,
+  "package": "org.vortex.resourceloader.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "mixins": [
+  ],
+  "server": [
+    "ServerCommonNetworkHandlerMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

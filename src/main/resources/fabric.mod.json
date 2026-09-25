@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "id": "resourceloader",
+  "version": "${version}",
+  "name": "ResourceLoader",
+  "description": "A Fabric server mod for hosting, managing, and merging Minecraft resource packs.",
+  "authors": [
+    "DefectiveVortex"
+  ],
+  "contact": {
+    "homepage": "https://github.com/DefectiveVortex/Resourceloader",
+    "sources": "https://github.com/DefectiveVortex/Resourceloader"
+  },
+  "license": "MIT",
+  "icon": "assets/resourceloader/icon.png",
+  "environment": "server",
+  "entrypoints": {
+    "server": [
+      "org.vortex.resourceloader.ResourceLoaderMod"
+    ]
+  },
+  "mixins": [
+    "resourceloader.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.19.0",
+    "minecraft": ">=26.3",
+    "fabric-api": "*"
+  }
+}

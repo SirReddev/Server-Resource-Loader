@@ -1,0 +1,28 @@
+# Gradle & Loom Build Artifacts
+.gradle/
+build/
+bin/
+out/
+.loom/
+
+# IDE Files
+.idea/
+*.iml
+*.ipr
+*.iws
+.project
+.classpath
+.settings/
+.vscode/
+
+# Extraction cache
+libs/
+
+# Run directories & Logs
+run/
+logs/
+crash-reports/
+
+# OS specific
+.DS_Store
+Thumbs.db
