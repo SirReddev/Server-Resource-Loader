@@ -11,7 +11,7 @@
     "homepage": "https://github.com/DefectiveVortex/Resourceloader",
     "sources": "https://github.com/DefectiveVortex/Resourceloader"
   },
-  "license": "MIT",
+  "license": "All-Rights-Reserved",
   "icon": "assets/resourceloader/icon.png",
   "environment": "server",
   "entrypoints": {

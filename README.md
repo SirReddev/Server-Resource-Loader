@@ -25,7 +25,7 @@
 
 ## <img src="assets/icons/datapacks_folder.svg" width="24" height="24" valign="middle" /> Installation
 
-1. Download `resourceloader-0.7.jar` or compile it with `.\gradlew.bat build`.
+1. Download `resourceloader-0.8.jar` or compile it with `.\gradlew.bat build`.
 2. Place the `.jar` file into your server's `mods/` directory.
 3. Put your resource pack `.zip` files into `config/resourceloader/packs/`.
 4. Start your server.
@@ -44,6 +44,7 @@
 | `/packlist` | `/listpacks`, `/resourcepacks` | List available packs with clickable load buttons. |
 | `/autoload <pack\|clear>` | - | Set or clear your preferred pack to load automatically on join. |
 | `/syncgithub [pack]` | `/githubsync`, `/rsync` | Check & download updates from configured GitHub repos (Admin). |
+| `/syncdatapack [name]` | `/datapacksync`, `/dsync` | Pull and update datapacks from GitHub repositories into your world (Admin). |
 | `/mergepack <output> <p1> <p2>...` | `/merge` | Merge two or more packs into a new pack (Admin). |
 | `/checkpack <pack>` | `/validatepack` | Validate a resource pack structure (Admin). |
 | `/resourcereload` | `/rreload` | Reload configuration, messages, and packs (Admin). |
@@ -66,12 +67,27 @@ File location: `config/resourceloader/config.json`
   },
   "githubPacks": {
     "dev_pack": {
-      "repo": "SirReddev/Server-Resource-Loader",
+      "repo": "your-username/your-resource-pack",
       "branch": "main",
       "path": "resourcepack",
       "autoUpdate": true,
       "checkIntervalMinutes": 10,
       "token": ""
+    }
+  },
+  "datapacks": {
+    "enabled": true,
+    "customWorldDirectory": "",
+    "autoReloadOnUpdate": true,
+    "githubDatapacks": {
+      "dev_datapack": {
+        "repo": "your-username/your-datapack",
+        "branch": "main",
+        "path": "datapack",
+        "autoUpdate": true,
+        "checkIntervalMinutes": 10,
+        "token": ""
+      }
     }
   },
   "storage": {
@@ -112,7 +128,11 @@ File location: `config/resourceloader/config.json`
 | :--- | :--- | :--- |
 | `serverPack` | String | Default pack file or URL sent to joining players. |
 | `resourcePacks` | Map | Named aliases mapped to local `.zip` files or download URLs. |
-| `githubPacks` | Map | Direct GitHub repository sources for live pack development. |
+| `githubPacks` | Map | Direct GitHub repository sources for live resource pack development. |
+| `datapacks.enabled` | Boolean | Enable GitHub sync support for server datapacks. |
+| `datapacks.customWorldDirectory` | String | Optional path to custom world folder (leave empty for active world). |
+| `datapacks.autoReloadOnUpdate` | Boolean | Automatically execute server reload when a datapack updates. |
+| `datapacks.githubDatapacks` | Map | Direct GitHub repository sources for live datapack development. |
 | `server.port` | Integer | Port for the built-in HTTP server (Default: `40021`). |
 | `server.address` | String | Your public server IP or domain (leave empty for auto-detection). |
 | `compression.enabled` | Boolean | Enable smart compression to reduce download times. |
@@ -124,13 +144,13 @@ File location: `config/resourceloader/config.json`
 
 ## <img src="assets/icons/fabric_file.svg" width="24" height="24" valign="middle" /> GitHub Repository Sync
 
-Develop your texture pack directly in a GitHub repository and have the server automatically pull changes.
+Develop your texture packs and datapacks directly in GitHub repositories and have the server automatically pull changes.
 
 | Option | Type | Description |
 | :--- | :--- | :--- |
 | `repo` | String | GitHub repository in `Owner/Repo` format or full HTTPS URL. |
 | `branch` | String | Git branch to track (e.g. `main` or `master`). |
-| `path` | String | Subfolder containing `pack.mcmeta` and `assets/` (leave empty if at repo root). |
+| `path` | String | Subfolder containing `pack.mcmeta` and `assets/` or `data/` (leave empty if at repo root). |
 | `autoUpdate` | Boolean | Automatically poll GitHub for new commits periodically. |
 | `checkIntervalMinutes` | Integer | Interval in minutes between background update checks. |
 | `token` | String | Optional Personal Access Token for private repositories or rate limits. |

@@ -91,8 +91,57 @@ public class ResourceLoaderCommands {
         registerGitHubSyncCommand(dispatcher, "githubsync");
         registerGitHubSyncCommand(dispatcher, "rsync");
 
+        registerDatapackSyncCommand(dispatcher, "syncdatapack");
+        registerDatapackSyncCommand(dispatcher, "datapacksync");
+        registerDatapackSyncCommand(dispatcher, "dsync");
+
         registerHelpCommand(dispatcher, "resourcehelp");
         registerHelpCommand(dispatcher, "rhelp");
+    }
+
+    private static final SuggestionProvider<CommandSourceStack> DATAPACK_SUGGESTIONS = (ctx, builder) -> {
+        ResourceLoaderMod mod = ResourceLoaderMod.getInstance();
+        if (mod != null && mod.getConfig().datapacks != null && mod.getConfig().datapacks.githubDatapacks != null) {
+            return SharedSuggestionProvider.suggest(mod.getConfig().datapacks.githubDatapacks.keySet(), builder);
+        }
+        return builder.buildFuture();
+    };
+
+    private static void registerDatapackSyncCommand(CommandDispatcher<CommandSourceStack> dispatcher, String name) {
+        dispatcher.register(Commands.literal(name)
+                .requires(ResourceLoaderCommands::hasAdminPermission)
+                .executes(ctx -> {
+                    ResourceLoaderMod mod = ResourceLoaderMod.getInstance();
+                    if (mod.getConfig().datapacks == null || mod.getConfig().datapacks.githubDatapacks == null || mod.getConfig().datapacks.githubDatapacks.isEmpty()) {
+                        ctx.getSource().sendFailure(Component.literal("§cNo GitHub repository datapacks configured in config.json."));
+                        return 0;
+                    }
+                    ctx.getSource().sendSuccess(() -> Component.literal("§7Checking all configured GitHub datapacks for updates..."), false);
+                    mod.getDatapackSync().syncAllAutoUpdateDatapacks();
+                    ctx.getSource().sendSuccess(() -> Component.literal("§aGitHub datapack sync triggered in background."), false);
+                    return 1;
+                })
+                .then(Commands.argument("datapack", StringArgumentType.string())
+                        .suggests(DATAPACK_SUGGESTIONS)
+                        .executes(ctx -> {
+                            String dpName = StringArgumentType.getString(ctx, "datapack").toLowerCase();
+                            ResourceLoaderMod mod = ResourceLoaderMod.getInstance();
+                            if (mod.getConfig().datapacks == null || mod.getConfig().datapacks.githubDatapacks == null || !mod.getConfig().datapacks.githubDatapacks.containsKey(dpName)) {
+                                ctx.getSource().sendFailure(Component.literal("§cNo GitHub repository source found for datapack: " + dpName));
+                                return 0;
+                            }
+                            ModConfig.GitHubRepoSource source = mod.getConfig().datapacks.githubDatapacks.get(dpName);
+                            ctx.getSource().sendSuccess(() -> Component.literal("§7Syncing GitHub datapack '§e" + dpName + "§7' from repo §b" + source.repo + "§7..."), false);
+                            mod.getDatapackSync().syncDatapack(dpName, source, true).thenAcceptAsync(file -> {
+                                ctx.getSource().sendSuccess(() -> Component.literal("§aSuccessfully updated GitHub datapack '§e" + dpName + "§a' (commit: §b" + source.lastCommitSha.substring(0, Math.min(7, source.lastCommitSha.length())) + "§a)!"), false);
+                            }).exceptionally(ex -> {
+                                ctx.getSource().sendFailure(Component.literal("§cFailed to sync GitHub datapack: " + ex.getMessage()));
+                                return null;
+                            });
+                            return 1;
+                        })
+                )
+        );
     }
 
     private static void registerGitHubSyncCommand(CommandDispatcher<CommandSourceStack> dispatcher, String name) {

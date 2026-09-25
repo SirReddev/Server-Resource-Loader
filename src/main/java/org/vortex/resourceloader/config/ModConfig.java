@@ -21,6 +21,7 @@ public class ModConfig {
     public String serverPack = "";
     public Map<String, String> resourcePacks = new LinkedHashMap<>();
     public Map<String, GitHubRepoSource> githubPacks = new LinkedHashMap<>();
+    public DatapackConfig datapacks = new DatapackConfig();
     public StorageConfig storage = new StorageConfig();
     public ServerSettings server = new ServerSettings();
     public CompressionConfig compression = new CompressionConfig();
@@ -99,6 +100,13 @@ public class ModConfig {
         public String lastCommitSha = "";
     }
 
+    public static class DatapackConfig {
+        public boolean enabled = true;
+        public String customWorldDirectory = "";
+        public boolean autoReloadOnUpdate = true;
+        public Map<String, GitHubRepoSource> githubDatapacks = new LinkedHashMap<>();
+    }
+
     public static ModConfig load(Path configPath) {
         File file = configPath.toFile();
         if (!file.exists()) {
@@ -117,6 +125,9 @@ public class ModConfig {
             }
             if (config.githubPacks == null) {
                 config.githubPacks = new LinkedHashMap<>();
+            }
+            if (config.datapacks == null) {
+                config.datapacks = new DatapackConfig();
             }
             return config;
         } catch (Exception e) {

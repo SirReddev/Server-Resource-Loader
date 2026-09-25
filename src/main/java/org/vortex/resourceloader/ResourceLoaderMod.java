@@ -5,11 +5,13 @@ import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.server.MinecraftServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.vortex.resourceloader.commands.ResourceLoaderCommands;
 import org.vortex.resourceloader.compression.PackCompressor;
 import org.vortex.resourceloader.config.ModConfig;
+import org.vortex.resourceloader.core.GitHubDatapackSync;
 import org.vortex.resourceloader.core.GitHubPackSync;
 import org.vortex.resourceloader.core.ResourcePackManager;
 import org.vortex.resourceloader.listeners.ResourcePackEnforcer;
@@ -24,6 +26,7 @@ public class ResourceLoaderMod implements DedicatedServerModInitializer {
     private static final Logger LOGGER = LoggerFactory.getLogger("ResourceLoader");
     private static ResourceLoaderMod instance;
 
+    private MinecraftServer server;
     private Path configDir;
     private ModConfig config;
     private MessageManager messageManager;
@@ -32,6 +35,7 @@ public class ResourceLoaderMod implements DedicatedServerModInitializer {
     private ResourcePackMerger packMerger;
     private ResourcePackEnforcer enforcer;
     private GitHubPackSync gitHubSync;
+    private GitHubDatapackSync datapackSync;
 
     @Override
     public void onInitializeServer() {
@@ -56,6 +60,7 @@ public class ResourceLoaderMod implements DedicatedServerModInitializer {
         this.packManager = new ResourcePackManager(this);
         this.enforcer = new ResourcePackEnforcer(this);
         this.gitHubSync = new GitHubPackSync(this);
+        this.datapackSync = new GitHubDatapackSync(this);
 
         // Register Brigadier commands
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
@@ -71,9 +76,17 @@ public class ResourceLoaderMod implements DedicatedServerModInitializer {
             this.enforcer.onPlayerDisconnect(handler.player);
         });
 
-        // Register Server Shutdown lifecycle
+        // Register Server Lifecycle events
+        ServerLifecycleEvents.SERVER_STARTED.register(server -> {
+            this.server = server;
+            if (this.datapackSync != null) {
+                this.datapackSync.syncAllAutoUpdateDatapacks();
+            }
+        });
+
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
             this.shutdown();
+            this.server = null;
         });
 
         LOGGER.info("ResourceLoader Fabric Mod initialized successfully!");
@@ -85,6 +98,9 @@ public class ResourceLoaderMod implements DedicatedServerModInitializer {
         this.packManager.loadResourcePacks(false);
         if (this.gitHubSync != null) {
             this.gitHubSync.syncAllAutoUpdatePacks();
+        }
+        if (this.datapackSync != null) {
+            this.datapackSync.syncAllAutoUpdateDatapacks();
         }
         LOGGER.info("ResourceLoader configuration reloaded");
     }
@@ -102,11 +118,18 @@ public class ResourceLoaderMod implements DedicatedServerModInitializer {
         if (this.gitHubSync != null) {
             this.gitHubSync.shutdown();
         }
+        if (this.datapackSync != null) {
+            this.datapackSync.shutdown();
+        }
         LOGGER.info("ResourceLoader has been stopped.");
     }
 
     public static ResourceLoaderMod getInstance() {
         return instance;
+    }
+
+    public MinecraftServer getServer() {
+        return this.server;
     }
 
     public Path getConfigDir() {
@@ -139,5 +162,9 @@ public class ResourceLoaderMod implements DedicatedServerModInitializer {
 
     public GitHubPackSync getGitHubSync() {
         return this.gitHubSync;
+    }
+
+    public GitHubDatapackSync getDatapackSync() {
+        return this.datapackSync;
     }
 }
