@@ -112,7 +112,6 @@ public class ResourcePackManager {
         String serverPack = config.serverPack;
         if (serverPack != null && !serverPack.isBlank()) {
             if (serverPack.startsWith("http://") || serverPack.startsWith("https://")) {
-                this.resourcePacks.put("server", null);
                 if (!silent) LOGGER.info("Registered default remote server pack: {}", serverPack);
             } else {
                 File serverPackFile = new File(packDirectory, serverPack);
@@ -120,7 +119,14 @@ public class ResourcePackManager {
                     this.resourcePacks.put("server", serverPackFile);
                     if (!silent) LOGGER.info("Loaded default server pack: {}", serverPack);
                 } else {
-                    LOGGER.warn("Configured default server pack file not found: {}", serverPack);
+                    String baseName = sanitizePackName(serverPack);
+                    File basePackFile = new File(packDirectory, baseName + ".zip");
+                    if (basePackFile.exists()) {
+                        this.resourcePacks.put("server", basePackFile);
+                        if (!silent) LOGGER.info("Loaded default server pack: {}.zip", baseName);
+                    } else {
+                        LOGGER.warn("Configured default server pack file not found yet: {}", serverPack);
+                    }
                 }
             }
         }
@@ -138,7 +144,6 @@ public class ResourcePackManager {
                         LOGGER.warn("Resource pack file not found for '{}': {}", key, pathOrUrl);
                     }
                 } else if (pathOrUrl != null) {
-                    this.resourcePacks.put(key, null);
                     if (!silent) LOGGER.info("Registered external resource pack URL: {}", key);
                 }
             }
@@ -152,7 +157,6 @@ public class ResourcePackManager {
                     this.resourcePacks.put(key, packFile);
                     if (!silent) LOGGER.info("Loaded GitHub-synced pack: {}", key);
                 } else {
-                    this.resourcePacks.put(key, null);
                     if (!silent) LOGGER.info("Registered GitHub-synced pack source: {}", key);
                 }
             }
@@ -178,21 +182,34 @@ public class ResourcePackManager {
         }
 
         String lowerName = packName.toLowerCase();
+        String lookupKey = lowerName;
+        if (lowerName.equals("server") && mod.getConfig().serverPack != null && !mod.getConfig().serverPack.isBlank()) {
+            lookupKey = sanitizePackName(mod.getConfig().serverPack);
+        }
 
         // Handle GitHub repo pack on-demand sync if file is missing
-        if (mod.getConfig().githubPacks != null && mod.getConfig().githubPacks.containsKey(lowerName)) {
-            ModConfig.GitHubRepoSource source = mod.getConfig().githubPacks.get(lowerName);
-            File localZip = new File(getResourcePackDirectory(), lowerName + ".zip");
+        if (mod.getConfig().githubPacks != null && mod.getConfig().githubPacks.containsKey(lookupKey)) {
+            ModConfig.GitHubRepoSource source = mod.getConfig().githubPacks.get(lookupKey);
+            File localZip = new File(getResourcePackDirectory(), lookupKey + ".zip");
             if (!localZip.exists()) {
                 mod.getMessageManager().sendLoading(player, packName);
-                mod.getGitHubSync().syncPack(lowerName, source, true).thenAcceptAsync(file -> {
-                    this.resourcePacks.put(lowerName, file);
+                String finalLookupKey = lookupKey;
+                mod.getGitHubSync().syncPack(finalLookupKey, source, true).thenAcceptAsync(file -> {
+                    this.resourcePacks.put(finalLookupKey, file);
+                    if (lowerName.equals("server")) {
+                        this.resourcePacks.put("server", file);
+                    }
                     sendLocalPackFile(player, lowerName, file);
                 }).exceptionally(ex -> {
                     mod.getMessageManager().sendError(player, "resource-packs.load-failed", "error", ex.getMessage());
                     return null;
                 });
                 return;
+            } else {
+                this.resourcePacks.put(lookupKey, localZip);
+                if (lowerName.equals("server")) {
+                    this.resourcePacks.put("server", localZip);
+                }
             }
         }
 
@@ -240,6 +257,16 @@ public class ResourcePackManager {
             });
         } else {
             File packFile = this.resourcePacks.get(lowerName);
+            if (packFile == null) {
+                File candidate = new File(getResourcePackDirectory(), packPathOrUrl);
+                if (!candidate.exists() && !packPathOrUrl.endsWith(".zip")) {
+                    candidate = new File(getResourcePackDirectory(), packPathOrUrl + ".zip");
+                }
+                if (candidate.exists()) {
+                    packFile = candidate;
+                    this.resourcePacks.put(lowerName, packFile);
+                }
+            }
             sendLocalPackFile(player, lowerName, packFile);
         }
     }

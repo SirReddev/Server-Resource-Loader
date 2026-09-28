@@ -79,6 +79,9 @@ public class ResourceLoaderMod implements DedicatedServerModInitializer {
         // Register Server Lifecycle events
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             this.server = server;
+            if (this.gitHubSync != null) {
+                this.gitHubSync.syncAllAutoUpdatePacks();
+            }
             if (this.datapackSync != null) {
                 this.datapackSync.syncAllAutoUpdateDatapacks();
             }
