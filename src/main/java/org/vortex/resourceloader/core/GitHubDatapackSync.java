@@ -218,9 +218,8 @@ public class GitHubDatapackSync {
         if (server != null && mod.getConfig().datapacks.autoReloadOnUpdate) {
             server.execute(() -> {
                 try {
-                    server.reloadResources(server.getPackRepository().getSelectedIds()).thenAccept(v -> {
-                        LOGGER.info("Server data pack reload complete after updating '{}'", datapackName);
-                    });
+                    server.getCommands().performPrefixedCommand(server.createCommandSourceStack().withSuppressedOutput(), "reload");
+                    LOGGER.info("Server data pack reload complete after updating '{}'", datapackName);
                 } catch (Exception e) {
                     LOGGER.warn("Failed to auto-reload server resources after datapack update: {}", e.getMessage());
                 }
