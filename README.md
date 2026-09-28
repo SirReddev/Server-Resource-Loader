@@ -26,7 +26,7 @@
 
 ## <img src="assets/icons/datapacks_folder.svg" width="24" height="24" valign="middle" /> Installation
 
-1. Download `resourceloader-0.8.2.jar` or compile it with `.\gradlew.bat build`.
+1. Download `resourceloader-0.8.3.jar` or compile it with `.\gradlew.bat build`.
 2. Place the `.jar` file into your server's `mods/` directory.
 3. Start your server once to generate the default configuration files.
 4. Customize `config/resourceloader/config.json` to suit your server's needs.

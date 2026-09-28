@@ -136,17 +136,22 @@ public class ResourcePackServer {
 
         File packsDir = mod.getPackManager().getResourcePackDirectory();
         File cacheDir = mod.getPackManager().getCacheDirectory();
+        File compressionDir = mod.getConfigDir().resolve("compression_cache").toFile();
 
         Path packsRoot = packsDir.getCanonicalFile().toPath().normalize();
         Path cacheRoot = cacheDir.getCanonicalFile().toPath().normalize();
+        Path compressionRoot = compressionDir.getCanonicalFile().toPath().normalize();
 
         File targetFile = new File(packsDir, packPath);
+        if (!targetFile.exists()) {
+            targetFile = new File(compressionDir, packPath);
+        }
         if (!targetFile.exists()) {
             targetFile = new File(cacheDir, packPath);
         }
 
         Path canonicalTarget = targetFile.getCanonicalFile().toPath().normalize();
-        if (!canonicalTarget.startsWith(packsRoot) && !canonicalTarget.startsWith(cacheRoot)) {
+        if (!canonicalTarget.startsWith(packsRoot) && !canonicalTarget.startsWith(cacheRoot) && !canonicalTarget.startsWith(compressionRoot)) {
             LOGGER.warn("Blocked directory traversal attempt from {}: {}", exchange.getRemoteAddress(), packPath);
             exchange.sendResponseHeaders(403, -1);
             exchange.close();
