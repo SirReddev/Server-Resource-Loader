@@ -61,7 +61,8 @@ public class ResourcePackWatcher {
                     }
 
                     Path filename = (Path) event.context();
-                    if (filename.toString().toLowerCase().endsWith(".zip")) {
+                    String nameStr = filename.toString().toLowerCase();
+                    if (nameStr.endsWith(".zip") && !nameStr.startsWith(".") && !nameStr.endsWith(".tmp") && !nameStr.contains("_temp")) {
                         File newFile = packPath.resolve(filename).toFile();
                         LOGGER.info("Detected new resource pack file: {}", filename);
                         // Allow file write completion

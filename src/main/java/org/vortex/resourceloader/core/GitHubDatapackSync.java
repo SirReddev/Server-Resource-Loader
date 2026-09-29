@@ -148,7 +148,7 @@ public class GitHubDatapackSync {
         }
 
         // 3. Extract subfolder (or root) and package as datapack zip
-        File tempZip = new File(destinationDir, datapackName + "_temp.zip");
+        File tempZip = new File(destinationDir, "." + datapackName + ".download.tmp");
         String subPath = normalizePath(source.path);
 
         try (InputStream in = zipResp.body();

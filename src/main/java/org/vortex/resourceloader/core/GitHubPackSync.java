@@ -141,7 +141,7 @@ public class GitHubPackSync {
         }
 
         // 3. Extract subfolder (or root) and create local zip
-        File tempZip = new File(destinationDir, packName + "_temp.zip");
+        File tempZip = new File(destinationDir, "." + packName + ".download.tmp");
         String subPath = normalizePath(source.path);
 
         try (InputStream in = zipResp.body();
